@@ -9,6 +9,9 @@ import CodePage from './components/CodePage'; // Import CodePage from the correc
 import LikedIdeaPage from './components/LikedIdeaPage'; // Corrected path to match your previous messages
 import './App.css';
 import PremiumPage from './components/PremiumPage';
+import SettingsPage from './components/SettingsPage';
+import PravicyPolicy from './components/PravicyPolicy';
+import ProfilePage from './components/Profile';
 
 function App() {
   return (
@@ -28,7 +31,10 @@ function App() {
           }
         />
         <Route path="/premium" element={<PremiumPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
           <Route path="/liked-ideas" element={<LikedIdeaPage />} />
+           <Route path="/privacy" element={<PravicyPolicy />} />
+         <Route path="/profile" element={<ProfilePage />} />
         </Routes>
       </Router>
     </div>

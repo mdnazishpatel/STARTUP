@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Float, Preload } from '@react-three/drei';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import Header from './Header';
+import Footer from './Footer';
+import * as THREE from 'three';
+// Icons
 import {
-  Zap,
   Crown,
   Shield,
   Brain,
@@ -12,6 +13,7 @@ import {
   Rocket,
   Sparkles,
   Code,
+  Zap,
   Check,
   X,
   ArrowRight,
@@ -19,11 +21,9 @@ import {
   Users,
   TrendingUp,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import Header from './Header';
-import Footer from './Footer';
 
-// Error Boundary
+
+// Error Boundary (Unchanged)
 class PremiumPageErrorBoundary extends React.Component {
   state = { hasError: false, error: null };
 
@@ -53,7 +53,13 @@ class PremiumPageErrorBoundary extends React.Component {
   }
 }
 
-// Three.js Background (Same as CreatePage)
+//api calls 
+async function name(e) {
+  e.prevetDefault()
+  const kjf = alert('started plan')
+}
+
+// Three.js Background (Same as before)
 const ThreeJSBackground = () => {
   const mountRef = useRef(null);
   const frameRef = useRef(null);
@@ -200,7 +206,7 @@ const ThreeJSBackground = () => {
   return <div ref={mountRef} className="absolute inset-0 pointer-events-none z-0" />;
 };
 
-// Floating 3D Icons
+// Floating Icon Component
 const Floating3DIcon = ({ icon: Icon, position, delay = 0 }) => {
   if (!Icon) return null;
   return (
@@ -223,8 +229,9 @@ const Floating3DIcon = ({ icon: Icon, position, delay = 0 }) => {
   );
 };
 
+// Main Component
 const PremiumPage = () => {
-  const [billingCycle, setBillingCycle] = useState('yearly'); // 'monthly' or 'yearly'
+  const [billingCycle, setBillingCycle] = useState('yearly');
   const navigate = useNavigate();
 
   const floatingIcons = [
@@ -236,56 +243,56 @@ const PremiumPage = () => {
     { icon: Code, position: { x: 30, y: 50 }, delay: 5 },
   ];
 
-  const plans = [
-    {
-      name: 'Starter',
-      price: { monthly: 9, yearly: 8 },
-      description: 'Perfect for solo founders and side projects',
-      popular: false,
-      features: [
-        { text: '3 AI-generated startups/month', icon: Brain },
-        { text: 'Basic tech stack suggestions', icon: Cpu },
-        { text: '1 code generation per idea', icon: Code },
-        { text: 'Email support', icon: Users },
-      ],
-      cta: 'Start Free Trial',
-      color: 'from-gray-500 to-gray-600',
-    },
-    {
-      name: 'Pro',
-      price: { monthly: 29, yearly: 24 },
-      description: 'For serious founders building real startups',
-      popular: true,
-      features: [
-        { text: 'Unlimited AI startups', icon: Brain },
-        { text: 'Advanced tech stack & architecture', icon: Cpu },
-        { text: 'Full-stack code generation', icon: Code },
-        { text: 'Market size & revenue models', icon: TrendingUp },
-        { text: 'Competitive analysis', icon: Users },
-        { text: 'Priority support', icon: Shield },
-        { text: 'Export to GitHub', icon: Database },
-      ],
-      cta: 'Upgrade to Pro',
-      color: 'from-purple-600 to-cyan-600',
-    },
-    {
-      name: 'Enterprise',
-      price: { monthly: 99, yearly: 79 },
-      description: 'For teams, incubators, and accelerators',
-      popular: false,
-        features: [
-        { text: 'Everything in Pro, plus', icon: Check },
-        { text: 'Team collaboration workspace', icon: Users },
-        { text: 'API access & webhooks', icon: Database },
-        { text: 'Custom AI training', icon: Brain },
-        { text: 'SLA & dedicated support', icon: Shield },
-        { text: 'On-premise deployment option', icon: Cpu },
-        { text: 'White-label solutions', icon: Sparkles },
-      ],
-      cta: 'Contact Sales',
-      color: 'from-green-600 to-teal-600',
-    },
-  ];
+ const plans = [
+  {
+    name: 'Free',
+    price: { monthly: 0, yearly: 0 },
+    description: 'Perfect for testing your first ideas',
+    popular: false,
+    features: [
+      { text: '3 AI-generated startup ideas/month', icon: Brain },
+      { text: '1 code generation/month', icon: Code },
+      { text: 'Basic tech stack recommendations', icon: Cpu },
+      { text: 'Community support', icon: Users },
+    ],
+    cta: 'Get Started Free',
+    color: 'from-gray-500 to-gray-600',
+  },
+  {
+    name: 'Growth',
+    price: { monthly: 9, yearly: 90 },
+    description: 'For founders building and validating fast',
+    popular: true,
+    features: [
+      { text: 'Unlimited AI-generated startup ideas', icon: Brain },
+      { text: '5 code generations/month', icon: Code },
+      { text: 'Advanced tech stack & architecture', icon: Cpu },
+      { text: 'Market insights & revenue modeling', icon: TrendingUp },
+      { text: 'Competitive analysis', icon: Users },
+      { text: 'Priority support', icon: Shield },
+    ],
+    cta: 'Upgrade to Growth',
+    color: 'from-purple-600 to-cyan-600',
+  },
+  {
+    name: 'Pro',
+    price: { monthly: 19, yearly: 190 },
+    description: 'Unlimited power with deployment & scaling',
+    popular: false,
+    features: [
+      { text: 'All Growth features included', icon: Check },
+      { text: 'Unlimited code generations', icon: Code },
+      { text: 'Live preview environment', icon: Sparkles },
+      { text: 'Export & deploy to GitHub', icon: Database },
+      { text: 'Direct cloud deployment (Vercel/Netlify)', icon: Cpu },
+      { text: 'White-label & branding options', icon: Shield },
+      { text: 'Dedicated support channel', icon: Users },
+    ],
+    cta: 'Go Pro',
+    color: 'from-green-600 to-teal-600',
+  },
+];
+
 
   return (
     <PremiumPageErrorBoundary>
@@ -298,33 +305,29 @@ const PremiumPage = () => {
         ))}
 
         <main className="relative z-10 max-w-7xl mx-auto px-6 pt-32 pb-40">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="text-center space-y-6 mb-16"
-          >
-            <h1 className="text-6xl md:text-8xl font-black leading-tight">
+          {/* Hero Section */}
+          <section className="text-center space-y-6 mb-16">
+            <h1 className="text-5xl md:text-7xl font-black leading-tight">
               <span className="bg-gradient-to-r from-white via-purple-200 to-cyan-200 bg-clip-text text-transparent">
-                Build Faster.
+                Accelerate Innovation.
               </span>
               <br />
               <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent animate-gradient">
-                Scale Smarter.
+                Scale with Confidence.
               </span>
             </h1>
-            <p className="text-xl md:text-2xl text-gray-300 max-w-3xl mx-auto">
-              Unlock the full power of AI-driven startup creation with advanced features, unlimited generations, and enterprise-grade tools.
+            <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
+              Unlock AI-powered startup ideation, architecture, and development tools designed for founders, teams, and enterprises.
             </p>
 
             {/* Billing Toggle */}
             <div className="flex justify-center mt-8">
-              <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-2 flex items-center">
+              <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-1 flex items-center shadow-lg">
                 <button
                   onClick={() => setBillingCycle('monthly')}
-                  className={`px-6 py-3 rounded-xl font-medium transition-all ${
+                  className={`px-5 py-2.5 rounded-xl font-medium transition-all ${
                     billingCycle === 'monthly'
-                      ? 'bg-cyan-500 text-white'
+                      ? 'bg-cyan-500 text-white shadow-md'
                       : 'text-gray-300 hover:text-white'
                   }`}
                 >
@@ -332,35 +335,31 @@ const PremiumPage = () => {
                 </button>
                 <button
                   onClick={() => setBillingCycle('yearly')}
-                  className={`px-6 py-3 rounded-xl font-medium transition-all flex items-center gap-2 ${
+                  className={`px-5 py-2.5 rounded-xl font-medium transition-all flex items-center gap-2 ${
                     billingCycle === 'yearly'
-                      ? 'bg-purple-500 text-white'
+                      ? 'bg-purple-500 text-white shadow-md'
                       : 'text-gray-300 hover:text-white'
                   }`}
                 >
                   <Star className="w-4 h-4 text-yellow-300" />
-                  Yearly <span className="text-sm opacity-80">(Save 20%)</span>
+                  Yearly <span className="text-xs opacity-80">(Save 20%)</span>
                 </button>
               </div>
             </div>
-          </motion.div>
+          </section>
 
           {/* Pricing Cards */}
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto mt-16">
+          <section className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto mt-12">
             {plans.map((plan, idx) => (
-              <motion.div
+              <div
                 key={plan.name}
-                initial={{ opacity: 0, y: 50 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: idx * 0.2 }}
-                className={`relative bg-white/5 backdrop-blur-xl border border-white/20 rounded-3xl p-8 hover:border-cyan-500/50 transition-all group ${
-                  plan.popular ? 'ring-2 ring-purple-500/50 scale-105 md:scale-110' : ''
+                className={`relative bg-white/5 backdrop-blur-xl border border-white/20 rounded-3xl p-8 hover:border-cyan-500/50 transition-all duration-500 transform hover:scale-105 ${
+                  plan.popular ? 'ring-4 ring-purple-500/50 scale-105 md:scale-110' : ''
                 }`}
               >
                 {plan.popular && (
                   <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                    <span className="bg-gradient-to-r from-purple-500 to-cyan-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
+                    <span className="bg-gradient-to-r from-purple-500 to-cyan-500 text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg">
                       Most Popular
                     </span>
                   </div>
@@ -368,22 +367,22 @@ const PremiumPage = () => {
 
                 <div className="text-center mb-6">
                   <h3 className="text-2xl font-bold text-white">{plan.name}</h3>
-                  <p className="text-gray-400 mt-2">{plan.description}</p>
+                  <p className="text-gray-400 text-sm mt-1">{plan.description}</p>
                   <div className="mt-4">
                     <span className="text-4xl font-extrabold text-white">
                       ${plan.price[billingCycle]}
                     </span>
-                    <span className="text-gray-400">/{billingCycle === 'monthly' ? 'mo' : 'yr'}</span>
+                    <span className="text-gray-400 text-sm">/{billingCycle === 'monthly' ? 'mo' : 'yr'}</span>
                   </div>
                 </div>
 
-                <ul className="space-y-4 mb-8">
+                <ul className="space-y-3 mb-8">
                   {plan.features.map((feature, i) => {
                     const Icon = feature.icon;
                     return (
-                      <li key={i} className="flex items-start gap-3 text-gray-300">
+                      <li key={i} className="flex items-start gap-3 text-gray-300 text-sm">
                         <Icon className="w-5 h-5 text-cyan-400 mt-0.5 flex-shrink-0" />
-                        <span className="text-sm">{feature.text}</span>
+                        <span>{feature.text}</span>
                       </li>
                     );
                   })}
@@ -395,27 +394,22 @@ const PremiumPage = () => {
                       ? window.open('mailto:sales@yourstartupai.com', '_blank')
                       : navigate('/checkout', { state: { plan: plan.name, price: plan.price[billingCycle] } })
                   }
-                  className={`w-full py-4 rounded-xl font-bold transition-all transform hover:scale-105 ${
+                  className={`w-full py-3.5 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${
                     plan.popular
-                      ? `bg-gradient-to-r ${plan.color} text-white hover:from-purple-700 hover:to-cyan-700`
+                      ? `bg-gradient-to-r ${plan.color} text-white hover:from-purple-700 hover:to-cyan-700 shadow-lg`
                       : 'bg-white/10 text-white hover:bg-white/20 border border-white/20'
                   }`}
                 >
                   {plan.cta}
-                  {plan.name !== 'Enterprise' && <ArrowRight className="inline w-5 h-5 ml-2" />}
+                  {plan.name !== 'Enterprise' && <ArrowRight className="w-4 h-4 ml-1" />}
                 </button>
-              </motion.div>
+              </div>
             ))}
-          </div>
+          </section>
 
-          {/* Security & Trust */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.8 }}
-            className="text-center mt-24 max-w-2xl mx-auto"
-          >
-            <div className="flex flex-wrap justify-center gap-8 text-gray-400 text-sm">
+          {/* Trust Badges */}
+          <section className="text-center mt-24 max-w-2xl mx-auto">
+            <div className="flex flex-wrap justify-center gap-6 text-gray-400 text-sm">
               <div className="flex items-center gap-2">
                 <Shield className="w-5 h-5 text-green-400" />
                 <span>Secure Payments</span>
@@ -426,14 +420,14 @@ const PremiumPage = () => {
               </div>
               <div className="flex items-center gap-2">
                 <X className="w-5 h-5 text-red-400" />
-                <span>No Contracts</span>
+                <span>No Long-Term Contracts</span>
               </div>
               <div className="flex items-center gap-2">
                 <Check className="w-5 h-5 text-green-400" />
                 <span>Cancel Anytime</span>
               </div>
             </div>
-          </motion.div>
+          </section>
         </main>
 
         <Footer />

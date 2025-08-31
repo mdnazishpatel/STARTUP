@@ -102,7 +102,7 @@ function Register() {
 
       if (response.ok) {
         alert('Registration successful!');
-        // navigate('/home'); // Uncomment when using react-router-dom
+        navigate('/home'); // Uncomment when using react-router-dom
       } else {
         const errorData = await response.json();
         alert(errorData.error || 'Registration failed!');

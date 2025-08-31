@@ -627,23 +627,54 @@ const CreatePage = () => {
     }
   };
 
-  const handleLike = useCallback(async (ideaId) => {
-    try {
-      await fetch('http://localhost:8000/like', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ideaId }),
-        credentials: 'include',
-      });
-      setIdeas((prev) =>
-        prev.map((idea) =>
-          idea.id === ideaId ? { ...idea, isLiked: !idea.isLiked } : idea
+ // Replace your existing handleLike function in CreatePage with this:
+
+const handleLike = useCallback(async (ideaId) => {
+  try {
+    const idea = ideas.find(i => i.id === ideaId);
+    const isCurrentlyLiked = idea?.isLiked;
+    
+    // Optimistically update UI
+    setIdeas(prev =>
+      prev.map(idea =>
+        idea.id === ideaId ? { ...idea, isLiked: !isCurrentlyLiked } : idea
+      )
+    );
+
+    // Make API call
+    const endpoint = isCurrentlyLiked ? '/unlike' : '/like';
+    const response = await fetch(`http://localhost:8000${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ideaId }),
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      // Revert optimistic update on error
+      setIdeas(prev =>
+        prev.map(idea =>
+          idea.id === ideaId ? { ...idea, isLiked: isCurrentlyLiked } : idea
         )
       );
-    } catch (err) {
-      setErrorMessage('Failed to like idea');
+      throw new Error('Failed to update like status');
     }
-  }, []);
+
+    const data = await response.json();
+    console.log('Like updated successfully:', data);
+    
+  } catch (err) {
+    setErrorMessage('Failed to update like status');
+    console.error('Like error:', err);
+    
+    // Revert the optimistic update on error
+    setIdeas(prev =>
+      prev.map(idea =>
+        idea.id === ideaId ? { ...idea, isLiked: idea.isLiked } : idea
+      )
+    );
+  }
+}, [ideas]);
 
   const handleSelect = useCallback((ideaId) => {
     setSelectedIdeas((prev) => {
@@ -1033,14 +1064,7 @@ const CreatePage = () => {
             />
           )}
         </AnimatePresence>
-
-        <footer className="relative z-10 border-t border-white/10 py-8 mt-16">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center text-gray-400">
-              <p>&copy; 2024 StartupAI. Powered by AI innovation.</p>
-            </div>
-          </div>
-        </footer>
+        <Footer/>
 
         <style jsx global>{`
           .line-clamp-1 {

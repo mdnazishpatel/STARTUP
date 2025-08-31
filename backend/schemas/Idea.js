@@ -2,30 +2,34 @@
 const mongoose = require('mongoose');
 
 const IdeaSchema = new mongoose.Schema({
-  id: { type: String, required: true, unique: true },
-  userId: { type: String, required: true },
-  name: String,
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    index: true
+  },
+  name: { type: String, required: true },
   tagline: String,
   description: String,
   techStack: [String],
   market: String,
-  revenueModel: String,
-  uniqueValue: String,
+  revenueModel: [String],           // ← Array
+  uniqueValue: [String],            // ← Array
   marketSize: String,
-  keyFeatures: [String],
+  keyFeatures: [String],            // ← Already array, good
   targetAudience: String,
   businessModel: String,
   scalability: String,
-  problemSolved: String,
-  solution: String,
-  competitiveAdvantage: String,
-  marketingStrategy: String,
-  fundingNeeds: String,
-  timeline: String,
-  riskMitigation: String,
-  isSelected: { type: Boolean, default: false },
+  problemSolved: [String],          // ← Array
+  solution: [String],               // ← Array
+  competitiveAdvantage: [String],   // ← Array
+  marketingStrategy: [String],      // ← Array
+  fundingNeeds: [String],           // ← Array
+  timeline: [String],               // ← Array
+  riskMitigation: [String],         // ← Array
   isLiked: { type: Boolean, default: false },
-  createdAt: { type: Date, default: Date.now },
+  isSelected: { type: Boolean, default: false },
+  createdAt: { type: Date, default: Date.now, index: true }
 });
 
 module.exports = mongoose.model('Idea', IdeaSchema);
