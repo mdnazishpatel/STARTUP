@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, ArrowRight } from 'lucide-react';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 // Floating 3D Icon Component
 const Floating3DIcon = ({ icon: Icon, position, delay = 0 }) => {
@@ -88,47 +90,101 @@ function Login() {
     { icon: Mail, position: { x: 15, y: 70 }, delay: 2 },
   ];
 
- async function handleLogin(e) {
-  e.preventDefault();
-  setIsLoading(true);
+  async function handleLogin(e) {
+    e.preventDefault();
+    setIsLoading(true);
 
-  console.log('Attempting login with:', { mail, password: '***' });
+    console.log('Attempting login with:', { mail, password: '***' });
 
-  try {
-    const response = await fetch('http://localhost:8000/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mail, password }),
-      credentials: 'include',
-    });
+    try {
+      const response = await fetch('http://localhost:8000/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mail, password }),
+        credentials: 'include',
+      });
 
-    console.log('Response status:', response.status);
-    console.log('Response ok:', response.ok);
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
 
-    const data = await response.json();
-    console.log('Response data:', data);
+      const data = await response.json();
+      console.log('Response data:', data);
 
-    if (!response.ok) {
-      throw new Error(data.error || 'Failed to login');
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to login');
+      }
+
+      // Check if user data exists
+      if (data.user) {
+        toast.success(`🎉 Welcome back, ${data.user.name}!`, {
+          position: "top-center",
+          autoClose: 4000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          theme: "dark",
+        });
+
+        // Clear form
+        setMail('');
+        setPassword('');
+
+        // Navigate after a short delay
+        setTimeout(() => {
+          navigate('/home');
+        }, 1500);
+      } else {
+        console.error('No user data in response:', data);
+        toast.warning('⚠️ Login successful but user data missing', {
+          position: "top-center",
+          autoClose: 4000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          theme: "dark",
+        });
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      
+      // Show specific error messages based on error type
+      if (error.message.includes('Invalid credentials') || error.message.includes('Unauthorized')) {
+        toast.error('❌ Invalid email or password. Please try again.', {
+          position: "top-center",
+          autoClose: 4000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          theme: "dark",
+        });
+      } else if (error.message.includes('Network') || error.message.includes('fetch')) {
+        toast.error('🌐 Network error! Please check your connection and try again.', {
+          position: "top-center",
+          autoClose: 4000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          theme: "dark",
+        });
+      } else {
+        toast.error(error.message || '❌ Login failed. Please try again.', {
+          position: "top-center",
+          autoClose: 4000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          theme: "dark",
+        });
+      }
+    } finally {
+      setIsLoading(false);
     }
-
-    // Check if user data exists
-    if (data.user) {
-      alert(`Welcome back ${data.user.name}`);
-      navigate('/home');
-      setMail('');
-      setPassword('');
-    } else {
-      console.error('No user data in response:', data);
-      alert('Login successful but user data missing');
-    }
-  } catch (error) {
-    console.error('Login error:', error);
-    alert(error.message);
-  } finally {
-    setIsLoading(false);
   }
-}
 
   return (
     <>
@@ -166,6 +222,22 @@ function Login() {
         .animate-gradient {
           background-size: 200% 200%;
           animation: gradient 3s ease-in-out infinite;
+        }
+        
+        /* Custom toast styles */
+        .Toastify__toast--success {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .Toastify__toast--error {
+          background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+        }
+        .Toastify__toast--warning {
+          background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        .Toastify__toast {
+          border-radius: 12px;
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
         }
       `}</style>
 
@@ -278,7 +350,7 @@ function Login() {
               <p className="text-gray-400">
                 Not a member?{' '}
                 <Link
-                  to="/register"
+                  to="/"
                   className="text-purple-400 hover:text-purple-300 font-semibold transition-colors duration-300"
                 >
                   Create an account for free
@@ -322,6 +394,19 @@ function Login() {
           </div>
         </div>
       </div>
+
+      <ToastContainer
+        position="top-center"
+        autoClose={4000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="dark"
+      />
     </>
   );
 }

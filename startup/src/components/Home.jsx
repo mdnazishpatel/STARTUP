@@ -3,6 +3,7 @@ import { ChevronRight, Sparkles, Code, Rocket, Play, ArrowRight, Check, Brain, C
 import * as THREE from 'three';
 import Header from './Header';
 import Footer from './Footer';
+import { useNavigate } from 'react-router-dom'; 
 // Placeholder Header
 const DefaultHeader = () => (
   <div className="h-16 bg-slate-950 flex items-center justify-center">
@@ -48,7 +49,7 @@ const ThreeJSHeroBackground = () => {
   const mountRef = useRef(null);
   const frameRef = useRef(null);
   const mouseRef = useRef({ x: 0, y: 0 });
-
+  
   useEffect(() => {
     if (!mountRef.current) return;
 
@@ -251,6 +252,7 @@ const IdeaOrb = ({ currentExample, examples }) => {
   const [hovered, setHovered] = useState(false);
   const [clicked, setClicked] = useState(false);
   const orbRef = useRef(null);
+  
 
   useEffect(() => {
     const handleMouseMove = (event) => {
@@ -351,7 +353,7 @@ const HomePage = () => {
   const [currentExample, setCurrentExample] = useState(0);
   const [isVisible, setIsVisible] = useState({});
   const examples = ['gym', 'coffee', 'travel', 'fintech', 'education', 'health', 'gaming'];
-
+const navigate = useNavigate()
   const features = [
     {
       icon: Brain,
@@ -494,10 +496,13 @@ const HomePage = () => {
               Join a community of innovators using our AI-powered platform to transform simple ideas into successful startups. Start building today with tools designed for speed and scalability.
             </p>
             <div className="flex flex-col sm:flex-row gap-6 justify-center">
-              <button className="group bg-gradient-to-r from-purple-600 to-cyan-600 px-10 py-5 rounded-2xl font-bold text-xl hover:from-purple-700 hover:to-cyan-700 transition-all flex items-center justify-center hover:scale-105">
-                Start Generating Now
-                <ArrowRight className="w-6 h-6 ml-3 group-hover:translate-x-1 transition-transform" />
-              </button>
+               <button
+      onClick={() => navigate('/create')}
+      className="group bg-gradient-to-r from-purple-600 to-cyan-600 px-10 py-5 rounded-2xl font-bold text-xl hover:from-purple-700 hover:to-cyan-700 transition-all duration-300 flex items-center justify-center hover:scale-105"
+    >
+      Start Generating Now
+      <ArrowRight className="w-6 h-6 ml-3 group-hover:translate-x-1 transition-transform duration-300" />
+    </button>
               <button className="px-10 py-5 border-2 border-white/30 rounded-2xl font-bold text-xl hover:bg-white/10 transition-all hover:border-white/50">
                 Watch Demo
               </button>

@@ -1,7 +1,21 @@
-// src/components/EnhancedHeader.jsx
-import React, { useState, useEffect, useRef} from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, Lightbulb, Heart, Code, LogOut, Menu, X, Sparkles, Zap, Rocket } from 'lucide-react';
+import {
+  Home,
+  Hammer,
+  Lightbulb,
+  Heart,
+  Code,
+  LogOut,
+  Menu,
+  X,
+  Sparkles,
+  Zap,
+  Rocket,
+  Crown,
+  User,
+  ChevronDown,
+} from 'lucide-react';
 import * as THREE from 'three';
 
 const ThreeBackground = () => {
@@ -114,7 +128,13 @@ const ThreeBackground = () => {
     }
   }, []);
 
-  return <div ref={mountRef} className="absolute inset-0 pointer-events-none opacity-60" />;
+  return (
+    <div
+      ref={mountRef}
+      className="absolute inset-0 pointer-events-none opacity-60"
+      style={{ zIndex: -1 }} // Ensure it's behind everything
+    />
+  );
 };
 
 const FloatingIcon = ({ icon: Icon, delay = 0, className = '' }) => {
@@ -133,39 +153,60 @@ const FloatingIcon = ({ icon: Icon, delay = 0, className = '' }) => {
 
 function EnhancedHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const navigate = useNavigate();
+  const profileDropdownRef = useRef(null);
 
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 50);
+      setIsProfileOpen(false); // Close dropdown on scroll
     };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target)) {
+        setIsProfileOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const handleLogout = async () => {
     try {
-      // Clear the JWT cookie by making a request to a logout endpoint or clearing client-side
       await fetch('http://localhost:8000/logout', {
         method: 'POST',
         credentials: 'include',
       });
-      // Redirect to login page
-      navigate('/login');
     } catch (error) {
       console.error('Logout error:', error);
+    } finally {
       navigate('/login');
+      setIsMenuOpen(false);
+      setIsProfileOpen(false);
     }
-    setIsMenuOpen(false);
   };
+
+  const profileMenuItems = [
+    { href: '/liked-ideas', icon: Heart, label: 'Liked Ideas', gradient: 'from-red-600/20 to-pink-600/20' },
+    { href: '/code', icon: Code, label: 'Code', gradient: 'from-yellow-600/20 to-orange-600/20' },
+    { href: '/settings', icon: Hammer, label: 'Settings', gradient: 'from-yellow-600/20 to-orange-600/20' },
+    { onClick: handleLogout, icon: LogOut, label: 'Logout', gradient: 'from-red-600/20 to-orange-600/20', isButton: true },
+  ];
 
   return (
     <header className="relative z-50 w-full">
-      <div className="absolute inset-0 h-48 overflow-hidden">
+      {/* 3D Background - now properly behind */}
+      <div className="absolute inset-0 h-48 pointer-events-none overflow-hidden">
         <ThreeBackground />
       </div>
 
+      {/* Floating Icons */}
       <FloatingIcon icon={Sparkles} delay={0} className="top-4 left-1/4" />
       <FloatingIcon icon={Zap} delay={1} className="top-8 right-1/3" />
       <FloatingIcon icon={Code} delay={2} className="top-6 left-3/4" />
@@ -178,23 +219,26 @@ function EnhancedHeader() {
           }`}
         >
           <div className="flex items-center justify-between">
+            {/* Logo */}
             <a
               href="/"
-              className="flex items-center space-x-4 group relative"
-              onClick={() => setIsMenuOpen(false)}
+              className="flex items-center space-x-4 group"
+              onClick={() => {
+                setIsMenuOpen(false);
+                setIsProfileOpen(false);
+              }}
             >
               <div className="relative">
                 <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-600 via-blue-600 to-cyan-600 p-0.5 group-hover:scale-110 transition-all duration-300">
                   <div className="w-full h-full rounded-2xl bg-slate-950 flex items-center justify-center relative overflow-hidden">
                     <img
-                      src="/images/logo.png" // Replace with your actual logo path
+                      src="https://www.newtraderu.com/wp-content/uploads/mind-control-2.jpg"
                       alt="StartupGenius Logo"
-                      className="w-8 h-8 rounded-xl object-cover relative z-10"
+                      className="w-8 h-8 rounded-xl object-cover z-10"
                     />
                     <div className="absolute inset-0 bg-gradient-to-br from-purple-600/50 to-cyan-600/50 rounded-2xl blur-sm animate-pulse"></div>
                   </div>
                 </div>
-                <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-white/40 to-transparent opacity-0 group-hover:opacity-30 transition-opacity duration-300"></div>
                 <div className="absolute -top-1 -right-1 w-2 h-2 bg-cyan-400 rounded-full animate-ping"></div>
                 <div className="absolute -bottom-1 -left-1 w-1.5 h-1.5 bg-purple-400 rounded-full animate-pulse delay-300"></div>
               </div>
@@ -206,7 +250,18 @@ function EnhancedHeader() {
               </div>
             </a>
 
+            {/* Desktop Nav */}
             <nav className="hidden md:flex items-center space-x-8">
+              <a
+                href="/home"
+                className="nav-item group flex items-center space-x-2 text-gray-300 hover:text-white font-medium transition-all duration-300 relative px-4 py-2 rounded-xl hover:bg-white/10"
+              >
+                <div className="p-1.5 rounded-lg bg-gradient-to-r from-cyan-600/20 to-purple-600/20 group-hover:from-cyan-600/40 group-hover:to-purple-600/40 transition-all">
+                  <Home className="w-4 h-4" />
+                </div>
+                <span>Home</span>
+                <div className="absolute inset-0 rounded-xl border border-transparent group-hover:border-white/20 transition-all"></div>
+              </a>
               <a
                 href="/create"
                 className="nav-item group flex items-center space-x-2 text-gray-300 hover:text-white font-medium transition-all duration-300 relative px-4 py-2 rounded-xl hover:bg-white/10"
@@ -218,96 +273,165 @@ function EnhancedHeader() {
                 <div className="absolute inset-0 rounded-xl border border-transparent group-hover:border-white/20 transition-all"></div>
               </a>
               <a
-                href="/liked-ideas"
-                className="nav-item group flex items-center space-x-2 text-gray-300 hover:text-white font-medium transition-all duration-300 relative px-4 py-2 rounded-xl hover:bg-white/10"
-              >
-                <div className="p-1.5 rounded-lg bg-gradient-to-r from-red-600/20 to-pink-600/20 group-hover:from-red-600/40 group-hover:to-pink-600/40 transition-all">
-                  <Heart className="w-4 h-4" />
-                </div>
-                <span>Liked Ideas</span>
-                <div className="absolute inset-0 rounded-xl border border-transparent group-hover:border-white/20 transition-all"></div>
-              </a>
-              <a
-                href="/code"
+                href="/premium"
                 className="nav-item group flex items-center space-x-2 text-gray-300 hover:text-white font-medium transition-all duration-300 relative px-4 py-2 rounded-xl hover:bg-white/10"
               >
                 <div className="p-1.5 rounded-lg bg-gradient-to-r from-blue-600/20 to-cyan-600/20 group-hover:from-blue-600/40 group-hover:to-cyan-600/40 transition-all">
-                  <Code className="w-4 h-4" />
+                  <Crown className="w-4 h-4" />
                 </div>
-                <span>Code</span>
+                <span>Premium</span>
                 <div className="absolute inset-0 rounded-xl border border-transparent group-hover:border-white/20 transition-all"></div>
               </a>
-              <button
-                onClick={handleLogout}
-                className="nav-item group flex items-center space-x-2 text-gray-300 hover:text-red-400 transition-all duration-300 font-medium relative px-4 py-2 rounded-xl hover:bg-red-500/10"
-              >
-                <div className="p-1.5 rounded-lg bg-gradient-to-r from-red-600/20 to-orange-600/20 group-hover:from-red-600/40 group-hover:to-orange-600/40 transition-all">
-                  <LogOut className="w-4 h-4" />
-                </div>
-                <span>Logout</span>
-                <div className="absolute inset-0 rounded-xl border border-transparent group-hover:border-red-400/20 transition-all"></div>
-              </button>
+
+              {/* Profile Button */}
+              <div className="relative" ref={profileDropdownRef}>
+                <button
+                  onClick={() => setIsProfileOpen(!isProfileOpen)}
+                  className="nav-item group flex items-center space-x-2 text-gray-300 hover:text-white font-medium transition-all duration-300 relative px-4 py-2 rounded-xl hover:bg-white/10"
+                >
+                  <div className="p-1.5 rounded-lg bg-gradient-to-r from-purple-600/20 to-pink-600/20 group-hover:from-purple-600/40 group-hover:to-pink-600/40 transition-all">
+                    <User className="w-4 h-4" />
+                  </div>
+                  <span>Profile</span>
+                  <ChevronDown
+                    className={`w-4 h-4 transition-transform duration-200 ${isProfileOpen ? 'rotate-180' : ''}`}
+                  />
+                  <div className="absolute inset-0 rounded-xl border border-transparent group-hover:border-white/20 transition-all"></div>
+                </button>
+
+                {/* ✅ Fixed Dropdown: Proper z-index, pointer events, and position */}
+                {isProfileOpen && (
+                  <div
+                    className="absolute right-0 top-full mt-2 w-48 bg-slate-900/95 backdrop-blur-xl rounded-xl p-2 shadow-2xl border border-white/20 animate-fade-in z-[1000]"
+                    style={{ pointerEvents: 'all' }}
+                  >
+                    {profileMenuItems.map((item, index) => (
+                      item.isButton ? (
+                        <button
+                          key={index}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            item.onClick();
+                          }}
+                          className="w-full flex items-center space-x-3 text-gray-300 hover:text-red-400 font-medium py-2 px-3 rounded-lg hover:bg-red-500/10 transition-all duration-300 group text-left"
+                        >
+                          <div
+                            className={`p-1.5 rounded-lg bg-gradient-to-r ${item.gradient} group-hover:from-red-600/40 group-hover:to-orange-600/40 transition-all`}
+                          >
+                            <item.icon className="w-4 h-4" />
+                          </div>
+                          <span>{item.label}</span>
+                        </button>
+                      ) : (
+                        <a
+                          href={item.href}
+                          key={index}
+                          onClick={() => setIsProfileOpen(false)}
+                          className="flex items-center space-x-3 text-gray-300 hover:text-white font-medium py-2 px-3 rounded-lg hover:bg-white/10 transition-all duration-300 group"
+                        >
+                          <div
+                            className={`p-1.5 rounded-lg bg-gradient-to-r ${item.gradient} transition-all`}
+                          >
+                            <item.icon className="w-4 h-4" />
+                          </div>
+                          <span>{item.label}</span>
+                        </a>
+                      )
+                    ))}
+                  </div>
+                )}
+              </div>
             </nav>
 
+            {/* Mobile Menu Button */}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="md:hidden relative p-3 rounded-xl bg-white/10 hover:bg-white/20 text-gray-300 focus:outline-none transition-all duration-300 group"
             >
-              <div className="relative">
-                {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
-              </div>
+              <div className="relative">{isMenuOpen ? <X size={20} /> : <Menu size={20} />}</div>
               <div className="absolute inset-0 rounded-xl border border-white/20 group-hover:border-white/40 transition-all"></div>
             </button>
           </div>
 
-          {isMenuOpen && (
-            <nav className="mt-6 pt-6 border-t border-white/20 md:hidden">
-              <div className="flex flex-col space-y-4">
-                <a
-                  href="/create"
-                  className="flex items-center justify-center space-x-3 text-gray-300 hover:text-white font-medium py-3 px-4 rounded-xl hover:bg-white/10 transition-all duration-300 group"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <div className="p-2 rounded-lg bg-gradient-to-r from-cyan-600/30 to-purple-600/30">
-                    <Lightbulb className="w-5 h-5" />
-                  </div>
-                  <span>Create</span>
-                </a>
-                <a
-                  href="/liked-ideas"
-                  className="flex items-center justify-center space-x-3 text-gray-300 hover:text-white font-medium py-3 px-4 rounded-xl hover:bg-white/10 transition-all duration-300 group"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <div className="p-2 rounded-lg bg-gradient-to-r from-red-600/30 to-pink-600/30">
-                    <Heart className="w-5 h-5" />
-                  </div>
-                  <span>Liked Ideas</span>
-                </a>
-                <a
-                  href="/code"
-                  className="flex items-center justify-center space-x-3 text-gray-300 hover:text-white font-medium py-3 px-4 rounded-xl hover:bg-white/10 transition-all duration-300 group"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <div className="p-2 rounded-lg bg-gradient-to-r from-blue-600/30 to-cyan-600/30">
-                    <Code className="w-5 h-5" />
-                  </div>
-                  <span>Code</span>
-                </a>
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center justify-center space-x-3 text-gray-300 hover:text-red-400 font-medium py-3 px-4 rounded-xl hover:bg-red-500/10 transition-all duration-300 group w-full"
-                >
-                  <div className="p-2 rounded-lg bg-gradient-to-r from-red-600/30 to-orange-600/30">
-                    <LogOut className="w-5 h-5" />
-                  </div>
-                  <span>Logout</span>
-                </button>
-              </div>
-            </nav>
-          )}
+          {/* Mobile Menu */}
+        {isMenuOpen && (
+  <nav className="mt-6 pt-6 border-t border-white/20 md:hidden">
+    <div className="flex flex-col space-y-3">
+      {/* Main Navigation Links */}
+      <a
+        href="/home"
+        onClick={() => setIsMenuOpen(false)}
+        className="flex items-center justify-center space-x-3 text-gray-300 hover:text-white font-medium py-3 px-4 rounded-xl hover:bg-white/10 transition-all duration-300 group"
+      >
+        <div className="p-2 rounded-lg bg-gradient-to-r from-cyan-600/30 to-purple-600/30">
+          <Home className="w-5 h-5" />
+        </div>
+        <span>Home</span>
+      </a>
+
+      <a
+        href="/create"
+        onClick={() => setIsMenuOpen(false)}
+        className="flex items-center justify-center space-x-3 text-gray-300 hover:text-white font-medium py-3 px-4 rounded-xl hover:bg-white/10 transition-all duration-300 group"
+      >
+        <div className="p-2 rounded-lg bg-gradient-to-r from-cyan-600/30 to-purple-600/30">
+          <Lightbulb className="w-5 h-5" />
+        </div>
+        <span>Create</span>
+      </a>
+
+      <a
+        href="/premium"
+        onClick={() => setIsMenuOpen(false)}
+        className="flex items-center justify-center space-x-3 text-gray-300 hover:text-white font-medium py-3 px-4 rounded-xl hover:bg-white/10 transition-all duration-300 group"
+      >
+        <div className="p-2 rounded-lg bg-gradient-to-r from-blue-600/30 to-cyan-600/30">
+          <Crown className="w-5 h-5" />
+        </div>
+        <span>Premium</span>
+      </a>
+
+      {/* Divider */}
+      <div className="border-t border-white/10 my-2"></div>
+
+      {/* Profile Section Links */}
+      {profileMenuItems.map((item, index) => (
+        item.isButton ? (
+          <button
+            key={index}
+            onClick={(e) => {
+              e.preventDefault();
+              item.onClick();
+            }}
+            className="flex items-center justify-center space-x-3 text-gray-300 hover:text-red-400 font-medium py-3 px-4 rounded-xl hover:bg-red-500/10 transition-all duration-300 group w-full text-left"
+          >
+            <div className="p-2 rounded-lg bg-gradient-to-r from-red-600/30 to-orange-600/30">
+              <item.icon className="w-5 h-5" />
+            </div>
+            <span>{item.label}</span>
+          </button>
+        ) : (
+          <a
+            href={item.href}
+            key={index}
+            onClick={() => setIsMenuOpen(false)}
+            className="flex items-center justify-center space-x-3 text-gray-300 hover:text-white font-medium py-3 px-4 rounded-xl hover:bg-white/10 transition-all duration-300 group"
+          >
+            <div className="p-2 rounded-lg bg-gradient-to-r from-red-600/30 to-pink-600/30">
+              <item.icon className="w-5 h-5" />
+            </div>
+            <span>{item.label}</span>
+          </a>
+        )
+      ))}
+    </div>
+  </nav>
+)}
         </div>
       </div>
 
+      {/* Global Styles */}
       <style jsx>{`
         .glass-enhanced {
           background: linear-gradient(
@@ -324,7 +448,6 @@ function EnhancedHeader() {
             0 0 0 1px rgba(255, 255, 255, 0.2);
           border: 1px solid rgba(255, 255, 255, 0.25);
           position: relative;
-          overflow: hidden;
         }
 
         @supports not (backdrop-filter: blur(10px)) {
@@ -354,8 +477,23 @@ function EnhancedHeader() {
           }
         }
 
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
         .animate-float {
           animation: float 4s ease-in-out infinite;
+        }
+
+        .animate-fade-in {
+          animation: fade-in 0.2s ease-out;
         }
 
         .nav-item::after {
@@ -372,60 +510,6 @@ function EnhancedHeader() {
 
         .nav-item:hover::after {
           width: 80%;
-        }
-
-        @keyframes sparkle {
-          0% {
-            opacity: 0;
-            transform: scale(0) rotate(0deg);
-            filter: blur(0px);
-          }
-          50% {
-            opacity: 1;
-            transform: scale(1.5) rotate(180deg);
-            filter: blur(2px);
-          }
-          100% {
-            opacity: 0;
-            transform: scale(0) rotate(360deg);
-            filter: blur(0px);
-          }
-        }
-
-        .glass-enhanced::before {
-          content: '';
-          position: absolute;
-          top: 15%;
-          right: 10%;
-          width: 8px;
-          height: 8px;
-          background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 20%, rgba(139, 92, 246, 0.5) 60%, transparent);
-          border-radius: 50%;
-          animation: sparkle 2.5s ease-in-out infinite;
-          box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
-        }
-
-        .glass-enhanced::after {
-          content: '';
-          position: absolute;
-          bottom: 20%;
-          left: 15%;
-          width: 6px;
-          height: 6px;
-          background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 20%, rgba(6, 182, 212, 0.5) 60%, transparent);
-          border-radius: 50%;
-          animation: sparkle 3s ease-in-out infinite 0.8s;
-          box-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
-        }
-
-        @media (max-width: 768px) {
-          .max-w-7xl {
-            width: 100%;
-            padding: 0 1rem;
-          }
-          .glass-enhanced {
-            padding: 1rem;
-          }
         }
       `}</style>
     </header>

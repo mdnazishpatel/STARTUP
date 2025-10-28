@@ -1,438 +1,768 @@
+// src/pages/CodePage.jsx - Fixed Version
 import React, { useState, useEffect, useRef } from 'react';
+import { LiveProvider, LiveError, LivePreview } from 'react-live';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { 
-  Code, 
-  Loader2, 
-  Heart, 
-  Copy, 
-  Check, 
-  Download, 
-  FolderOpen, 
-  File,
-  ChevronRight,
+import hljs from 'highlight.js';
+import 'highlight.js/styles/monokai-sublime.css';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+
+import {
+  Copy,
+  Loader2,
+  FileText,
+  Database,
+  Settings,
+  Cloud,
+  TestTube,
+  Folder,
   ChevronDown,
-  Play,
-  Terminal
+  ChevronRight,
+  Download,
+  Eye,
+  GitBranch,
+  AlertTriangle,
 } from 'lucide-react';
-import EnhancedHeader from './Header';
-import Footer from './Footer';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import Header from '../components/Header';
+import Footer from '../components/Footer'; // Fixed import path
+// import { toast } from 'react-toastify'; // Commented out - might not be installed
 
 const CodePage = () => {
-  const [codebases, setCodebases] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [selectedCodebase, setSelectedCodebase] = useState(0);
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [copiedStates, setCopiedStates] = useState({});
-  const [expandedFolders, setExpandedFolders] = useState(new Set(['src']));
-  const containerRef = useRef(null);
   const { state } = useLocation();
   const navigate = useNavigate();
+  const [codebases, setCodebases] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [viewMode, setViewMode] = useState('desktop');
+  const [activeTab, setActiveTab] = useState('architecture');
+  const [expandedSections, setExpandedSections] = useState({});
+  const [successMessage, setSuccessMessage] = useState('');
+  const containerRef = useRef(null);
+
+  // Simple toast replacement function
+  const showToast = (message, type = 'success') => {
+    if (type === 'success') {
+      setSuccessMessage(message);
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } else {
+      setErrorMessage(message);
+      setTimeout(() => setErrorMessage(''), 3000);
+    }
+  };
 
   useEffect(() => {
     const fetchCode = async () => {
-      if (state?.codebases?.length > 0) {
-        setCodebases(state.codebases);
-        if (state.codebases[0]?.files?.length > 0) {
-          setSelectedFile(state.codebases[0].files[0]);
-        }
+      // Check if we have valid state
+      if (!state?.ideaIds || !Array.isArray(state.ideaIds) || state.ideaIds.length === 0) {
+        setErrorMessage('No ideas selected. Please go back and select ideas first.');
+        setIsLoading(false);
         return;
       }
 
-      const ideaIds = state?.ideaIds;
-      if (!ideaIds || ideaIds.length === 0) {
-        setErrorMessage('No ideas selected. Go back to Create.');
-        return;
-      }
+      console.log('Fetching code for idea IDs:', state.ideaIds); // Debug log
 
-      setIsLoading(true);
       try {
-        const res = await fetch('http://localhost:8000/code', {
+        const response = await fetch('http://localhost:8000/code', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ideaIds }),
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ ideaIds: state.ideaIds }),
           credentials: 'include',
         });
 
-        if (res.status === 401) {
-          navigate('/login');
-          return;
+        console.log('Response status:', response.status); // Debug log
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Server error response:', errorText); // Debug log
+          
+          let errorData;
+          try {
+            errorData = JSON.parse(errorText);
+          } catch {
+            errorData = { error: errorText };
+          }
+          
+          throw new Error(errorData.error || `Server error: ${response.status}`);
         }
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed');
+        const data = await response.json();
+        console.log('Received data:', data); // Debug log
 
-        setCodebases(data.codebases || []);
-        if (data.codebases?.[0]?.files?.length > 0) {
-          setSelectedFile(data.codebases[0].files[0]);
+        if (!data.codebases || !Array.isArray(data.codebases)) {
+          throw new Error('Invalid response format - expected codebases array');
         }
+
+        if (data.codebases.length === 0) {
+          throw new Error('No codebases were generated');
+        }
+
+        setCodebases(data.codebases);
+
+        // Auto-expand architecture & files sections
+        const initialExpanded = {};
+        data.codebases.forEach((_, idx) => {
+          initialExpanded[`architecture-${idx}`] = true;
+          initialExpanded[`files-${idx}`] = true;
+          // Auto-expand first category in files
+          if (data.codebases[idx].files && data.codebases[idx].files.length > 0) {
+            const firstCategory = data.codebases[idx].files[0].category || 'misc';
+            initialExpanded[`category-${idx}-${firstCategory}`] = true;
+          }
+        });
+        setExpandedSections(initialExpanded);
+        
+        showToast('Code generation completed successfully!');
       } catch (err) {
-        setErrorMessage(err.message);
+        console.error('Code generation error:', err);
+        setErrorMessage(err.message || 'Failed to generate code');
       } finally {
         setIsLoading(false);
+        // Highlight syntax after render
+        setTimeout(() => {
+          try {
+            hljs.highlightAll();
+          } catch (highlightErr) {
+            console.warn('Syntax highlighting failed:', highlightErr);
+          }
+        }, 100);
       }
     };
 
     fetchCode();
-  }, [state, navigate]);
+  }, [state]);
 
-  const handleLikeIdea = async (ideaId) => {
-    try {
-      await fetch('http://localhost:8000/select-idea', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ideaId, isLiked: true }),
-        credentials: 'include',
-      });
-    } catch (err) {
-      setErrorMessage('Could not save idea');
-    }
+  // Re-highlight when content changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        hljs.highlightAll();
+      } catch (err) {
+        console.warn('Syntax highlighting failed:', err);
+      }
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [activeTab, expandedSections, codebases]);
+
+  const toggleSection = (sectionId) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [sectionId]: !prev[sectionId],
+    }));
   };
 
-  const copyToClipboard = async (content, fileId) => {
+  const handleCopy = async (content) => {
     try {
       await navigator.clipboard.writeText(content);
-      setCopiedStates(prev => ({ ...prev, [fileId]: true }));
-      setTimeout(() => {
-        setCopiedStates(prev => ({ ...prev, [fileId]: false }));
-      }, 2000);
+      showToast('Code copied to clipboard!');
     } catch (err) {
-      console.error('Failed to copy:', err);
+      console.error('Copy failed:', err);
+      showToast('Failed to copy to clipboard', 'error');
     }
   };
 
-  const downloadProject = (codebase) => {
-    const zip = codebase.files.map(file => `// ${file.path}\n${file.content}`).join('\n\n// ==================\n\n');
-    const blob = new Blob([zip], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${codebase.name}-project.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  const handleDownloadAll = (codebase) => {
+    try {
+      const files = codebase.files || [];
+      const projectName = (codebase.name || 'project').replace(/\s+/g, '_').toLowerCase();
 
-  const toggleFolder = (folderName) => {
-    setExpandedFolders(prev => {
-      const next = new Set(prev);
-      if (next.has(folderName)) {
-        next.delete(folderName);
-      } else {
-        next.add(folderName);
+      if (files.length === 0) {
+        showToast('No files to download', 'error');
+        return;
       }
-      return next;
-    });
+
+      files.forEach((file, index) => {
+        setTimeout(() => {
+          const blob = new Blob([file.content || ''], { type: 'text/plain' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          // Create safe filename
+          const safePath = (file.path || `file_${index}.txt`).replace(/[^a-zA-Z0-9._-]/g, '_');
+          a.download = `${projectName}_${safePath}`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, index * 100); // Stagger downloads to avoid browser blocking
+      });
+
+      showToast(`Downloading ${files.length} files...`);
+    } catch (err) {
+      console.error('Download error:', err);
+      showToast('Download failed', 'error');
+    }
   };
 
-  const FileTree = ({ files, level = 0 }) => {
-    const folders = {};
-    const fileItems = [];
+  const getFilesByCategory = (files) => {
+    if (!Array.isArray(files)) return [];
+    
+    const categories = {
+      config: 'Configuration',
+      frontend: 'Frontend',
+      backend: 'Backend',
+      database: 'Database',
+      devops: 'DevOps',
+      docs: 'Documentation',
+      tests: 'Tests',
+      misc: 'Miscellaneous',
+    };
 
-    files.forEach(file => {
-      const pathParts = file.path.split('/');
-      if (pathParts.length > level + 1) {
-        const folderName = pathParts[level];
-        if (!folders[folderName]) {
-          folders[folderName] = [];
+    const grouped = {};
+    files.forEach((file) => {
+      const category = file.category || 'misc';
+      if (!grouped[category]) grouped[category] = [];
+      grouped[category].push(file);
+    });
+
+    return Object.entries(grouped).map(([key, files]) => ({
+      name: categories[key] || key,
+      key,
+      files,
+    }));
+  };
+
+  const renderPreview = (file) => {
+    if (!file.content) {
+      return <p className="text-gray-400">No content to preview.</p>;
+    }
+
+    // Only try to render React components
+    if (file.language === 'jsx' || file.language === 'javascript') {
+      try {
+        const cleanCode = file.content
+          .replace(/import\s+.*from\s+['"][^'"]+['"]/g, '') // Remove imports
+          .replace(/export\s+default\s+.*$/gm, '') // Remove exports
+          .trim();
+
+        if (cleanCode) {
+          return (
+            <LiveProvider
+              key={file.path}
+              code={cleanCode}
+              scope={{ React, useState: React.useState, useEffect: React.useEffect }}
+              noInline={false}
+            >
+              <div
+                className={`border border-white/20 rounded-2xl p-4 bg-gray-800/50 backdrop-blur-sm ${
+                  viewMode === 'mobile'
+                    ? 'max-w-xs'
+                    : viewMode === 'tablet'
+                    ? 'max-w-md'
+                    : 'max-w-4xl'
+                } mx-auto`}
+              >
+                <LivePreview className="p-4 rounded-lg bg-slate-900" />
+                <LiveError className="text-red-400 text-sm mt-2" />
+              </div>
+            </LiveProvider>
+          );
         }
-        folders[folderName].push(file);
-      } else {
-        fileItems.push(file);
+      } catch (err) {
+        console.warn('Preview error:', err);
+        return <p className="text-yellow-400">Preview not available for this file.</p>;
       }
-    });
+    }
+    
+    return <p className="text-gray-400">Live preview only available for React components.</p>;
+  };
+
+  const MarkdownRenderer = ({ content }) => {
+    if (!content || content === 'undefined' || content === 'null') {
+      return <p className="text-gray-400 italic">Content not available</p>;
+    }
 
     return (
-      <div>
-        {Object.entries(folders).map(([folderName, folderFiles]) => (
-          <div key={folderName}>
-            <div
-              className="flex items-center space-x-2 py-1 px-2 hover:bg-white/5 cursor-pointer rounded"
-              style={{ paddingLeft: `${level * 16 + 8}px` }}
-              onClick={() => toggleFolder(folderName)}
-            >
-              {expandedFolders.has(folderName) ? (
-                <ChevronDown className="w-4 h-4 text-gray-400" />
-              ) : (
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              )}
-              <FolderOpen className="w-4 h-4 text-blue-400" />
-              <span className="text-sm text-gray-300">{folderName}</span>
-            </div>
-            {expandedFolders.has(folderName) && (
-              <FileTree files={folderFiles} level={level + 1} />
-            )}
-          </div>
-        ))}
-        {fileItems.map(file => (
+      <div className="prose prose-invert prose-sm max-w-none">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            p: ({ children, ...props }) => (
+              <p className="mb-2 text-gray-300" {...props}>{children}</p>
+            ),
+            ul: ({ children, ...props }) => (
+              <ul className="list-disc list-inside mb-2 ml-4 text-gray-300" {...props}>
+                {children}
+              </ul>
+            ),
+            ol: ({ children, ...props }) => (
+              <ol className="list-decimal list-inside mb-2 ml-4 text-gray-300" {...props}>
+                {children}
+              </ol>
+            ),
+            li: ({ children, ...props }) => (
+              <li className="mb-1 text-gray-300" {...props}>{children}</li>
+            ),
+            code: ({ children, ...props }) => (
+              <code
+                className="bg-gray-800 px-1.5 py-0.5 rounded text-cyan-400 text-xs"
+                {...props}
+              >
+                {children}
+              </code>
+            ),
+            pre: ({ children, ...props }) => (
+              <pre
+                className="bg-gray-900 p-3 rounded-lg overflow-x-auto text-xs"
+                {...props}
+              >
+                {children}
+              </pre>
+            ),
+            h1: ({ children, ...props }) => (
+              <h1 className="text-xl font-bold text-cyan-400 mb-3" {...props}>{children}</h1>
+            ),
+            h2: ({ children, ...props }) => (
+              <h2 className="text-lg font-semibold text-purple-400 mb-2" {...props}>{children}</h2>
+            ),
+            h3: ({ children, ...props }) => (
+              <h3 className="text-md font-medium text-gray-200 mb-2" {...props}>{children}</h3>
+            ),
+          }}
+        >
+          {content}
+        </ReactMarkdown>
+      </div>
+    );
+  };
+
+  const ArchitectureSection = ({ codebase, idx }) => (
+    <div className="space-y-6">
+      <div className="bg-white/5 backdrop-blur-lg rounded-3xl p-8 border border-white/20">
+        <h3 className="text-2xl font-bold text-cyan-400 mb-4 flex items-center">
+          <Settings className="w-6 h-6 mr-2" />
+          System Architecture
+        </h3>
+        <MarkdownRenderer content={codebase.architecture?.overview || 'Architecture overview not available.'} />
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        <div className="bg-white/5 backdrop-blur-lg rounded-3xl p-6 border border-white/20">
+          <h4 className="text-lg font-semibold text-purple-400 mb-3 flex items-center">
+            <Database className="w-5 h-5 mr-2" />
+            Database Design
+          </h4>
+          <MarkdownRenderer content={codebase.architecture?.databaseDesign || 'Database design not available.'} />
+        </div>
+        <div className="bg-white/5 backdrop-blur-lg rounded-3xl p-6 border border-white/20">
+          <h4 className="text-lg font-semibold text-green-400 mb-3 flex items-center">
+            <Cloud className="w-5 h-5 mr-2" />
+            API Design
+          </h4>
+          <MarkdownRenderer content={codebase.architecture?.apiDesign || 'API design not available.'} />
+        </div>
+      </div>
+    </div>
+  );
+
+  const FilesSection = ({ codebase, idx }) => {
+    const categorizedFiles = getFilesByCategory(codebase.files || []);
+    
+    if (categorizedFiles.length === 0) {
+      return (
+        <div className="bg-white/5 backdrop-blur-lg rounded-3xl p-8 border border-white/20 text-center">
+          <Folder className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-gray-400 mb-2">No Files Generated</h3>
+          <p className="text-gray-500">There was an issue generating files for this project.</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        {categorizedFiles.map((category) => (
           <div
-            key={file.path}
-            className={`flex items-center space-x-2 py-1 px-2 hover:bg-white/5 cursor-pointer rounded ${
-              selectedFile?.path === file.path ? 'bg-white/10 border-l-2 border-cyan-400' : ''
-            }`}
-            style={{ paddingLeft: `${level * 16 + 24}px` }}
-            onClick={() => setSelectedFile(file)}
+            key={category.key}
+            className="bg-white/5 backdrop-blur-lg rounded-3xl border border-white/20 overflow-hidden"
           >
-            <File className="w-4 h-4 text-gray-400" />
-            <span className="text-sm text-gray-300">{file.path.split('/').pop()}</span>
+            <button
+              onClick={() => toggleSection(`category-${idx}-${category.key}`)}
+              className="w-full flex items-center justify-between p-6 hover:bg-white/5 transition-colors"
+            >
+              <h3 className="text-xl font-bold text-cyan-400 flex items-center">
+                <Folder className="w-5 h-5 mr-2" />
+                {category.name} ({category.files.length})
+              </h3>
+              {expandedSections[`category-${idx}-${category.key}`] ? (
+                <ChevronDown className="w-5 h-5 text-cyan-400" />
+              ) : (
+                <ChevronRight className="w-5 h-5 text-cyan-400" />
+              )}
+            </button>
+
+            {expandedSections[`category-${idx}-${category.key}`] && (
+              <div className="space-y-4 p-6 pt-0">
+                {category.files.map((file, fileIdx) => (
+                  <div
+                    key={`${file.path}-${fileIdx}`}
+                    className="bg-white/5 rounded-2xl border border-white/10 overflow-hidden"
+                  >
+                    <div className="flex items-center justify-between p-4 border-b border-white/10">
+                      <span className="text-cyan-400 font-mono text-sm truncate max-w-xs">
+                        {file.path || `file_${fileIdx}`}
+                      </span>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleCopy(file.content || '')}
+                          className="p-2 rounded-full bg-white/10 hover:bg-cyan-500/20 transition-all"
+                          title="Copy code"
+                        >
+                          <Copy className="w-4 h-4 text-cyan-400" />
+                        </button>
+                        {(file.language === 'jsx' || file.language === 'javascript') && (
+                          <button
+                            onClick={() => toggleSection(`preview-${idx}-${fileIdx}`)}
+                            className="p-2 rounded-full bg-white/10 hover:bg-green-500/20 transition-all"
+                            title="Toggle preview"
+                          >
+                            <Eye className="w-4 h-4 text-green-400" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <pre className="text-xs p-4 overflow-x-auto font-mono bg-gray-900/50">
+                      <code className={`language-${file.language || 'text'}`}>
+                        {file.content || '// No content available'}
+                      </code>
+                    </pre>
+
+                    <div className="p-4 border-t border-white/10 bg-gradient-to-r from-purple-900/20 to-cyan-900/20">
+                      <h5 className="text-sm font-semibold text-purple-400 mb-2">Explanation</h5>
+                      <MarkdownRenderer content={file.explanation || 'No explanation provided.'} />
+                    </div>
+
+                    {expandedSections[`preview-${idx}-${fileIdx}`] && 
+                     (file.language === 'jsx' || file.language === 'javascript') && (
+                      <div className="p-4 border-t border-white/10">
+                        <h5 className="text-sm font-semibold text-cyan-400 mb-3">Live Preview</h5>
+                        <div className="flex justify-center mb-4">
+                          <select
+                            value={viewMode}
+                            onChange={(e) => setViewMode(e.target.value)}
+                            className="bg-gray-800 rounded-lg p-2 text-white border border-white/10 text-sm"
+                          >
+                            <option value="desktop">Desktop</option>
+                            <option value="tablet">Tablet</option>
+                            <option value="mobile">Mobile</option>
+                          </select>
+                        </div>
+                        {renderPreview(file)}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>
     );
   };
 
-  useEffect(() => {
-    const els = containerRef.current?.querySelectorAll('.fade-in');
-    els?.forEach((el, i) => {
-      setTimeout(() => el.classList.add('visible'), i * 150);
-    });
-  }, [codebases]);
+  const SetupSection = ({ codebase }) => (
+    <div className="space-y-6">
+      <div className="bg-white/5 backdrop-blur-lg rounded-3xl p-6 border border-white/20">
+        <h3 className="text-xl font-bold text-cyan-400 mb-4">Development Setup</h3>
+        <MarkdownRenderer 
+          content={codebase.setupInstructions?.development || 'Development setup instructions not available.'} 
+        />
+      </div>
+      <div className="bg-white/5 backdrop-blur-lg rounded-3xl p-6 border border-white/20">
+        <h3 className="text-xl font-bold text-green-400 mb-4">Production Setup</h3>
+        <MarkdownRenderer 
+          content={codebase.setupInstructions?.production || 'Production setup instructions not available.'} 
+        />
+      </div>
+      <div className="bg-white/5 backdrop-blur-lg rounded-3xl p-6 border border-white/20">
+        <h3 className="text-xl font-bold text-purple-400 mb-4">Environment Variables</h3>
+        <pre className="bg-gray-900 p-3 rounded text-sm overflow-x-auto text-gray-300">
+          {codebase.setupInstructions?.environment || '# Environment variables not available'}
+        </pre>
+      </div>
+    </div>
+  );
 
-  useEffect(() => {
-    if (errorMessage.includes('Access denied') || errorMessage.includes('Invalid token')) {
-      navigate('/login');
-    }
-  }, [errorMessage, navigate]);
+  const DeploymentSection = ({ codebase }) => (
+    <div className="space-y-6">
+      <div className="bg-white/5 backdrop-blur-lg rounded-3xl p-6 border border-white/20">
+        <h3 className="text-xl font-bold text-cyan-400 mb-4 flex items-center">
+          <Cloud className="w-5 h-5 mr-2" />
+          Deployment Guide
+        </h3>
+        <div className="flex flex-wrap gap-2 mb-4">
+          {(codebase.deploymentGuide?.platforms || ['Not specified']).map((platform, idx) => (
+            <span
+              key={`${platform}-${idx}`}
+              className="px-3 py-1 bg-cyan-500/20 text-cyan-300 rounded-full text-sm"
+            >
+              {platform}
+            </span>
+          ))}
+        </div>
+        <MarkdownRenderer 
+          content={codebase.deploymentGuide?.steps || 'Deployment steps not available.'} 
+        />
+      </div>
+      <div className="bg-white/5 backdrop-blur-lg rounded-3xl p-6 border border-white/20">
+        <h3 className="text-xl font-bold text-purple-400 mb-4 flex items-center">
+          <GitBranch className="w-5 h-5 mr-2" />
+          CI/CD Pipeline
+        </h3>
+        <MarkdownRenderer 
+          content={codebase.deploymentGuide?.cicd || 'CI/CD configuration not available.'} 
+        />
+      </div>
+    </div>
+  );
 
+  const TestingSection = ({ codebase }) => (
+    <div className="space-y-6">
+      <div className="bg-white/5 backdrop-blur-lg rounded-3xl p-6 border border-white/20">
+        <h3 className="text-xl font-bold text-cyan-400 mb-4 flex items-center">
+          <TestTube className="w-5 h-5 mr-2" />
+          Testing Strategy
+        </h3>
+        <MarkdownRenderer 
+          content={codebase.testingStrategy?.overview || 'Testing strategy overview not available.'} 
+        />
+      </div>
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {['unit', 'integration', 'e2e'].map((testType) => (
+          <div
+            key={testType}
+            className="bg-white/5 backdrop-blur-lg rounded-3xl p-6 border border-white/20"
+          >
+            <h4 className="text-lg font-bold capitalize text-green-400 mb-4">
+              {testType === 'e2e' ? 'End-to-End' : testType} Testing
+            </h4>
+            <MarkdownRenderer 
+              content={codebase.testingStrategy?.[testType] || `${testType} testing information not available.`} 
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Loader2 className="w-12 h-12 animate-spin text-cyan-400 mx-auto" />
-          <p className="text-xl">Generating your complete application...</p>
-          <p className="text-gray-400">This may take a few moments</p>
-        </div>
+      <div className="min-h-screen bg-slate-950 text-white relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/30 to-cyan-900/30 animate-gradient-shift" />
+        <Header />
+        <main className="relative z-10 flex flex-col items-center justify-center h-screen space-y-6">
+          <div className="relative">
+            <Loader2 className="w-16 h-16 text-cyan-400 animate-spin" />
+            <div className="absolute inset-0 w-16 h-16 border-4 border-purple-500/30 rounded-full animate-pulse" />
+          </div>
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-cyan-400 mb-2">Generating Full-Stack Project</h2>
+            <p className="text-gray-400 max-w-md">
+              Creating architecture, generating files, and setting up deployment guides...
+            </p>
+          </div>
+        </main>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-slate-950 text-white">
-      <EnhancedHeader />
-      <br></br>
-      <main className="pt-16 h-screen flex flex-col">
-        {errorMessage && (
-          <div className="bg-red-500/10 border border-red-500/20 p-4 m-4 rounded-lg">
-            <p className="text-red-400">{errorMessage}</p>
-            <button
-              onClick={() => navigate('/create')}
-              className="mt-2 bg-gradient-to-r from-purple-600 to-cyan-600 px-4 py-2 rounded-lg text-sm font-semibold"
-            >
-              Back to Create
-            </button>
-          </div>
-        )}
-
-        {codebases.length > 0 && (
-          <>
-            {/* Project Tabs */}
-            <div className="flex border-b border-white/10 bg-slate-900/50">
-              {codebases.map((codebase, index) => (
-                <button
-                  key={codebase.id}
-                  onClick={() => {
-                    setSelectedCodebase(index);
-                    if (codebase.files?.[0]) {
-                      setSelectedFile(codebase.files[0]);
-                    }
-                  }}
-                  className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                    selectedCodebase === index
-                      ? 'border-cyan-400 text-cyan-400'
-                      : 'border-transparent text-gray-400 hover:text-white'
-                  }`}
-                >
-                  <div className="flex items-center space-x-2">
-                    <Code className="w-4 h-4" />
-                    <span>{codebase.name || `Project ${index + 1}`}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-
-            {/* Main Editor Layout */}
-            <div className="flex flex-1 overflow-hidden">
-              {/* Sidebar - File Explorer */}
-              <div className="w-80 bg-slate-900/30 border-r border-white/10 flex flex-col">
-                <div className="p-4 border-b border-white/10">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-gray-200">
-                      {codebases[selectedCodebase]?.name || 'Project Explorer'}
-                    </h3>
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => handleLikeIdea(codebases[selectedCodebase].id)}
-                        className="p-1.5 rounded hover:bg-white/10"
-                        title="Save Project"
-                      >
-                        <Heart className="w-4 h-4 text-red-400" />
-                      </button>
-                      <button
-                        onClick={() => downloadProject(codebases[selectedCodebase])}
-                        className="p-1.5 rounded hover:bg-white/10"
-                        title="Download Project"
-                      >
-                        <Download className="w-4 h-4 text-gray-400" />
-                      </button>
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {codebases[selectedCodebase]?.files?.length || 0} files
-                  </p>
-                </div>
-                
-                <div className="flex-1 overflow-y-auto p-2">
-                  {codebases[selectedCodebase]?.files && (
-                    <FileTree files={codebases[selectedCodebase].files} />
-                  )}
-                </div>
-
-                {/* Project Info */}
-                <div className="p-4 border-t border-white/10 bg-slate-900/50">
-                  <div className="space-y-2 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Tech Stack:</span>
-                      <span className="text-gray-300">
-                        {codebases[selectedCodebase]?.techStack?.join(', ') || 'React, Node.js'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Status:</span>
-                      <span className="text-green-400 flex items-center">
-                        <div className="w-2 h-2 bg-green-400 rounded-full mr-1"></div>
-                        Generated
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Main Content Area */}
-              <div className="flex-1 flex flex-col">
-                {selectedFile ? (
-                  <>
-                    {/* File Header */}
-                    <div className="flex items-center justify-between bg-slate-900/30 border-b border-white/10 px-6 py-3">
-                      <div className="flex items-center space-x-3">
-                        <File className="w-4 h-4 text-gray-400" />
-                        <span className="font-mono text-sm text-gray-200">
-                          {selectedFile.path}
-                        </span>
-                        <span className="px-2 py-1 bg-cyan-500/20 text-cyan-400 text-xs rounded-full">
-                          {selectedFile.language || 'javascript'}
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => copyToClipboard(selectedFile.content, selectedFile.path)}
-                          className="flex items-center space-x-2 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition-colors"
-                        >
-                          {copiedStates[selectedFile.path] ? (
-                            <Check className="w-4 h-4 text-green-400" />
-                          ) : (
-                            <Copy className="w-4 h-4" />
-                          )}
-                          <span>{copiedStates[selectedFile.path] ? 'Copied!' : 'Copy'}</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Code Editor */}
-                    <div className="flex-1 overflow-hidden">
-                      <div className="h-full overflow-auto bg-[#1e1e1e]">
-                        <SyntaxHighlighter
-                          language={selectedFile.language || 'javascript'}
-                          style={vscDarkPlus}
-                          showLineNumbers={true}
-                          wrapLines={true}
-                          customStyle={{
-                            margin: 0,
-                            padding: '1rem',
-                            background: 'transparent',
-                            fontSize: '14px',
-                            lineHeight: '1.5',
-                          }}
-                          lineNumberStyle={{
-                            color: '#6B7280',
-                            paddingRight: '1rem',
-                            minWidth: '3rem',
-                          }}
-                        >
-                          {selectedFile.content}
-                        </SyntaxHighlighter>
-                      </div>
-                    </div>
-
-                    {/* File Description */}
-                    {selectedFile.description && (
-                      <div className="bg-slate-900/30 border-t border-white/10 p-4">
-                        <p className="text-sm text-gray-400">{selectedFile.description}</p>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="flex-1 flex items-center justify-center text-gray-500">
-                    <div className="text-center space-y-4">
-                      <File className="w-16 h-16 mx-auto opacity-30" />
-                      <p>Select a file to view its contents</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Bottom Status Bar */}
-            <div className="bg-slate-900 border-t border-white/10 px-6 py-2 flex items-center justify-between text-xs text-gray-400">
-              <div className="flex items-center space-x-6">
-                <span>Ready</span>
-                {selectedFile && (
-                  <span>{selectedFile.content.split('\n').length} lines</span>
-                )}
-              </div>
-              <div className="flex items-center space-x-6">
-                <span>{codebases[selectedCodebase]?.techStack?.join(' • ') || 'Full Stack'}</span>
-                <button
-                  onClick={() => navigate('/create')}
-                  className="flex items-center space-x-1 hover:text-white transition-colors"
-                >
-                  <Terminal className="w-3 h-3" />
-                  <span>Generate New</span>
-                </button>
-              </div>
-            </div>
-          </>
-        )}
-
-        {!isLoading && codebases.length === 0 && !errorMessage && (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center space-y-6">
-              <Code className="w-20 h-20 opacity-30 mx-auto" />
-              <div>
-                <h2 className="text-2xl font-bold mb-2">No Projects Generated</h2>
-                <p className="text-gray-400">Create some ideas first to generate code</p>
-              </div>
+  // Error state
+  if (errorMessage && codebases.length === 0) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/30 to-cyan-900/30 animate-gradient-shift" />
+        <Header />
+        <main className="relative z-10 max-w-4xl mx-auto px-4 pt-32">
+          <div className="bg-red-500/10 border border-red-500/30 text-red-400 p-8 rounded-2xl mb-6 text-center">
+            <AlertTriangle className="w-12 h-12 mx-auto mb-4" />
+            <h3 className="text-2xl font-bold mb-4">Code Generation Failed</h3>
+            <p className="text-lg mb-6">{errorMessage}</p>
+            <div className="flex justify-center space-x-4">
               <button
                 onClick={() => navigate('/create')}
-                className="bg-gradient-to-r from-purple-600 to-cyan-600 px-8 py-3 rounded-2xl font-semibold flex items-center space-x-2 mx-auto"
+                className="px-6 py-3 bg-cyan-500 hover:bg-cyan-600 text-white rounded-xl transition-colors"
               >
-                <Loader2 className="w-5 h-5" />
-                <span>Create Ideas</span>
+                Back to Ideas
+              </button>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-xl transition-colors"
+              >
+                Try Again
               </button>
             </div>
           </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Success/error messages
+  const MessageBar = () => (
+    <>
+      {successMessage && (
+        <div className="fixed top-20 right-4 bg-green-500/20 border border-green-500/50 text-green-400 p-4 rounded-xl z-50">
+          {successMessage}
+        </div>
+      )}
+      {errorMessage && (
+        <div className="fixed top-20 right-4 bg-red-500/20 border border-red-500/50 text-red-400 p-4 rounded-xl z-50">
+          {errorMessage}
+        </div>
+      )}
+    </>
+  );
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-white relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-purple-900/30 to-cyan-900/30 animate-gradient-shift" />
+      <Header />
+      <MessageBar />
+
+      <main
+        className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24"
+        ref={containerRef}
+      >
+        {codebases.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-purple-600/20 to-cyan-600/20 flex items-center justify-center">
+              <AlertTriangle className="w-12 h-12 text-yellow-400" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-300 mb-4">No Code Generated</h3>
+            <p className="text-gray-400 max-w-md mx-auto mb-6">
+              There was an issue generating code for your selected ideas.
+            </p>
+            <button
+              onClick={() => navigate('/create')}
+              className="px-6 py-3 bg-cyan-500 hover:bg-cyan-600 text-white rounded-xl transition-colors"
+            >
+              Back to Ideas
+            </button>
+          </div>
+        ) : (
+          codebases.map((codebase, idx) => (
+            <section key={codebase.id || idx} className="mb-16 animate-fade-in">
+              <div className="bg-white/5 backdrop-blur-lg rounded-3xl p-8 border border-white/20 shadow-xl mb-8">
+                <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start mb-6 space-y-4 lg:space-y-0">
+                  <div className="flex-1">
+                    <h1 className="text-3xl lg:text-4xl font-extrabold bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent mb-3">
+                      {codebase.name || `Project ${idx + 1}`}
+                    </h1>
+                    <p className="text-gray-300 text-lg mb-4">
+                      {codebase.description || 'Full-stack application with modern architecture'}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {(codebase.architecture?.techStack || []).map((tech, techIdx) => (
+                        <span
+                          key={`${tech}-${techIdx}`}
+                          className="px-3 py-1 bg-purple-500/20 text-purple-300 rounded-full text-sm border border-purple-500/30"
+                        >
+                          {tech}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleDownloadAll(codebase)}
+                    className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-xl hover:scale-105 transition-all shadow-lg"
+                  >
+                    <Download className="w-5 h-5" />
+                    <span>Download Project</span>
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap gap-2 border-t border-white/10 pt-6">
+                  {[
+                    { id: 'architecture', label: 'Architecture', icon: Settings },
+                    { id: 'files', label: 'Files', icon: FileText },
+                    { id: 'setup', label: 'Setup', icon: Settings },
+                    { id: 'deployment', label: 'Deployment', icon: Cloud },
+                    { id: 'testing', label: 'Testing', icon: TestTube },
+                  ].map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`flex items-center space-x-2 px-4 py-2 rounded-xl transition-all ${
+                        activeTab === tab.id
+                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50'
+                          : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10'
+                      }`}
+                    >
+                      <tab.icon className="w-4 h-4" />
+                      <span>{tab.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="animate-fade-in">
+                {activeTab === 'architecture' && <ArchitectureSection codebase={codebase} idx={idx} />}
+                {activeTab === 'files' && <FilesSection codebase={codebase} idx={idx} />}
+                {activeTab === 'setup' && <SetupSection codebase={codebase} />}
+                {activeTab === 'deployment' && <DeploymentSection codebase={codebase} />}
+                {activeTab === 'testing' && <TestingSection codebase={codebase} />}
+              </div>
+
+              {codebase.error && (
+                <div className="mt-6 bg-red-500/20 border border-red-500 text-red-400 p-6 rounded-xl">
+                  <div className="flex items-center mb-2">
+                    <AlertTriangle className="w-5 h-5 mr-2" />
+                    <h3 className="font-bold">Generation Error</h3>
+                  </div>
+                  <p>{codebase.error}</p>
+                </div>
+              )}
+            </section>
+          ))
         )}
       </main>
+      <Footer />
 
-      <style jsx global>{`
-        .fade-in { 
-          opacity: 0; 
-          transform: translateY(30px); 
-          transition: all 0.8s ease; 
+      <style jsx>{`
+        @keyframes gradientShift {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
         }
-        .fade-in.visible { 
-          opacity: 1; 
-          transform: translateY(0); 
+        .animate-gradient-shift {
+          background-size: 200% 200%;
+          animation: gradientShift 15s ease infinite;
+        }
+        .animate-fade-in {
+          animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+          width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+          background: rgba(30, 41, 59, 0.3);
+          border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+          background: rgba(139, 92, 246, 0.5);
+          border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+          background: rgba(139, 92, 246, 0.7);
+        }
+        
+        /* Code highlighting improvements */
+        .hljs {
+          background: transparent !important;
+        }
+        
+        pre code.hljs {
+          background: rgba(15, 23, 42, 0.5) !important;
+          color: #e2e8f0 !important;
         }
       `}</style>
     </div>

@@ -46,7 +46,7 @@ const Footer = () => {
 
         {/* Copyright */}
         <div className="text-gray-500 text-sm">
-          &copy; {new Date().getFullYear()} StartupGenius. All rights reserved.
+          &copy; {new Date().getFullYear()} StartupGenius by sikandar patel. All rights reserved.
         </div>
       </div>
 

@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { User, Mail, Lock, ArrowRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { useAuth0} from '@auth0/auth0-react';
 
 // Floating 3D Icon Component
 const Floating3DIcon = ({ icon: Icon, position, delay = 0 }) => {
@@ -81,6 +84,8 @@ function Register() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [focusedField, setFocusedField] = useState('');
+  const navigate = useNavigate();
+  const { loginWithRedirect } = useAuth0();
 
   const floatingIcons = [
     { icon: User, position: { x: 10, y: 20 }, delay: 0 },
@@ -101,19 +106,48 @@ function Register() {
       });
 
       if (response.ok) {
-        alert('Registration successful!');
-        // navigate('/home'); // Uncomment when using react-router-dom
+        toast.success('🎉 Registration successful! Welcome to StartupGenius!', {
+          position: "top-center",
+          autoClose: 4000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          theme: "dark",
+        });
+        
+        // Clear form
+        setName('');
+        setMail('');
+        setPassword('');
+        
+        // Navigate after a short delay
+        setTimeout(() => {
+          navigate('/home');
+        }, 1500);
       } else {
         const errorData = await response.json();
-        alert(errorData.error || 'Registration failed!');
+        toast.error(errorData.error || 'Registration failed! Please try again.', {
+          position: "top-center",
+          autoClose: 4000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          theme: "dark",
+        });
       }
-
-      setName('');
-      setMail('');
-      setPassword('');
     } catch (error) {
       console.error('Error:', error);
-      alert('Registration failed. Please try again.');
+      toast.error('❌ Network error! Please check your connection and try again.', {
+        position: "top-center",
+        autoClose: 4000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        theme: "dark",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -155,6 +189,19 @@ function Register() {
         .animate-gradient {
           background-size: 200% 200%;
           animation: gradient 3s ease-in-out infinite;
+        }
+        
+        /* Custom toast styles */
+        .Toastify__toast--success {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .Toastify__toast--error {
+          background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+        }
+        .Toastify__toast {
+          border-radius: 12px;
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
         }
       `}</style>
 
@@ -238,6 +285,14 @@ function Register() {
                   <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                 </div>
               </div>
+             <button 
+  type="button" 
+  onClick={() => loginWithRedirect()}
+  className="w-full mt-3 py-3 px-4 rounded-2xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition"
+>
+  Continue with Auth0
+</button>
+
               <button
                 type="submit"
                 disabled={isLoading}
@@ -319,6 +374,19 @@ function Register() {
           </div>
         </div>
       </div>
+      
+      <ToastContainer
+        position="top-center"
+        autoClose={4000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="dark"
+      />
     </>
   );
 }
